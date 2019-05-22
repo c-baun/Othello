@@ -19,26 +19,71 @@ public class Ai{
     this.player_char = player_char;
     this.ai_char = ai_char;
 
-    int length
+    int length =b.getLength();
 
-    decision = new int[b.getLength()][b.getLength()];
-    available = new boolean[b.get]
+    decision = new int[length][length];
+    available = new boolean[length][length];
 
     this.level = level;
+  }
+
+  public Board newBoard(){
+    Board new_b = new Board(length,b.getP1(),b.getP2(),b.getBlank());
+
+    for(int row = 0;row<length;row++){
+      for(int col = 0; col<length;col++){
+
+        new_b.place(row,col,b.getPosition(row, col));
+
+      }
+    }
+
+    return new_b;
   }
 
 
 
   public void possible_decision(){
 
-    for(int row =0; row< b.getLength();row++){
-      for(int col = 0;col<b.getLength();col++){
+    for(int row =0; row< length;row++){
+      for(int col = 0;col<length;col++){
         decision[row][col] = b.numFlipped(row,col,ai_char);
 
         if(decision[row][col] == 0){
           available[row][col] = false;}
       }
     }
+  }
+
+
+  public int[] get_best(){//level 1
+    int highest_value = 0;
+    int highest_row=0;
+    int highest_col=0;
+
+    int current_value;
+
+
+    for(int row = 0; row<b.getLength(); row++){
+
+      for(int col=0;col<b.getLength();col++){
+
+        current_value = b.numFlipped(row, col, ai_char);
+        if(current_value !=0){
+        
+
+        if(current_value> highest_value){
+          highest_row = row;
+          highest_col = col;
+          highest_value = current_value;
+
+        }
+      }
+      }
+    }
+    
+    int[] best_arr = {highest_row,highest_col};
+    return best_arr;
   }
 
   public void refine_decision(){
@@ -71,7 +116,7 @@ public class Ai{
 
     }
   }
-
+/*
   public int[] best_decision(){
 
     int[] best_d = new int[2];
@@ -95,12 +140,20 @@ public class Ai{
 
     return best_d;
   }
-
+*/
   public String toString(){
     String total ="";
-    for(int r[]:decision){
-      for (int c:r){
-        total += c + " ";
+    for(int row = 0; row<length;row++){
+      for (int col = 0;col<length;col++){
+
+        if(available[row][col]){
+          total+= decision[row][col];
+        }
+        else{
+          total += '/';
+        }
+        
+        total+=" ";
       }
       total+="\n";
     }
