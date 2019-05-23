@@ -40,8 +40,7 @@ public class Main {
         System.out.println("\n" + b);
 
         boolean player = false;
-        while(!b.hasEnded()) {
-            if (!b.canMove(b.getP1()) && !b.canMove(b.getP2())) break;
+        while(!b.hasEnded() && (b.canMove(b.getP1()) || b.canMove(b.getP2()))) {
 
             player = !player;
             if (player && b.canMove(b.getP1())) {
