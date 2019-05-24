@@ -256,4 +256,13 @@ public class Board {
     int getNumP2() {
         return numP2;
     }
+    char getBlank() {
+        return blank;
+    }
+    int getLength(){
+        return this.gSize;
+    }
+    char getPosition(int row,int col){
+        return arr[row][col];
+    }
 }
