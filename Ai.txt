@@ -1,44 +1,51 @@
 import java.util.ArrayList;
+import java.util.Random;
 
-import java.util.ArrayList;
 
 public class Ai{
 
-  int[][] decision;
-  boolean[][] available;
+  private Board b;
 
-  Board b;
+  private char player_char,ai_char,blank_char;
 
-  char player_char,ai_char,blank_char;
+  private int length;
 
-  int level;
+  private Random r = new Random();
 
-  int length;
+  private boolean debug;
 
+  private int level;
 
+  private boolean percent_random(int percentage){
+    int value = r.nextInt(99)+1;
 
-  public Ai(Board b,char player_char,char ai_char,char blank_char,int level){
+    return (percentage >= value);
+  }
+
+  public Ai(Board b,char player_char,char ai_char,char blank_char,int level,boolean debug){
     this.b = b;
 
     this.player_char = player_char;
     this.ai_char = ai_char;
     this.blank_char =blank_char;
 
-    int length =b.getLength();
+    this.length =b.getLength();
 
-    decision = new int[length][length];
-    available = new boolean[length][length];
+    this.debug = debug;
 
     this.level = level;
+
+
+
   }
 
-  public Board newBoard(){
-    Board new_b = new Board(b.getLength(),b.getP1(),b.getP2(),b.getBlank());
+  public Board newBoard(Board bo){
+    Board new_b = new Board(bo.getLength(),bo.getP1(),bo.getP2(),bo.getBlank());
 
     for(int row = 0;row<new_b.getLength();row++){
-      for(int col = 0; col<b.getLength();col++){
+      for(int col = 0; col<bo.getLength();col++){
 
-        new_b.place(row,col,b.getPosition(row, col));
+        new_b.place(row,col,bo.getPosition(row, col));
 
       }
     }
@@ -51,6 +58,84 @@ public class Ai{
     int[] a = {row,col,value};
 
     return a;
+  }
+
+  public ArrayList<int[]> all_possible_choice(Board b,char side){
+    ArrayList<int[]> c = new ArrayList<int[]>();
+    int current_value;
+
+    for(int row = 0; row< b.getLength(); row++){
+      for(int col = 0; col< b.getLength(); col++){
+        if(b.getPosition(row,col) == blank_char){
+          current_value = b.numFlipped(row,col,side);
+          if(current_value !=0){
+            c.add(create_decision(row,col,current_value));
+          }
+
+        }
+      }
+    }
+
+    return c;
+
+  }
+
+  public Board create_possible_board(Board b,int row,int col,char value){
+    Board newb = newBoard(b);
+
+    newb.numFlipped(row,col,value);
+
+    newb.place(row,col,value); 
+    newb.flip(row, col,value);
+
+    return newb;
+
+  }
+
+  private int[] highest_choice(ArrayList<int[]> a){
+    int[] highest = null;
+    for(int[] choice:a){
+      if(highest == null||highest[2] < choice[2]){
+        highest = choice;
+      }
+    }
+
+    return highest;
+  }
+
+
+
+  public int[] get_worst(){//level -1
+    ArrayList<int[]> all_choice = all_possible_choice(b,ai_char);
+    int[] lowest = {0,0,Integer.MAX_VALUE};
+    for(int[]c:all_choice){
+      if(c[2] < lowest[2]){
+        lowest = c;
+      }
+    }
+    return lowest;
+  }
+
+  public int[] get_middle(){//level 0
+    ArrayList<int[]> all_choice = all_possible_choice(b,ai_char);
+    int t = 0;
+
+    int[] middle = null;
+
+    for(int[] a:all_choice){
+      t+=a[2];        
+
+    }
+    t/=all_choice.size();
+
+    for(int[] a:all_choice){
+      if(middle == null || t-a[2] >t-middle[2]){
+        middle =a;
+      }
+    }
+
+    return middle;
+
   }
 
   public int[] get_best(){//level 1
@@ -85,53 +170,54 @@ public class Ai{
     return best_arr;
   }
 
-
-
   public int[] get_best_2(){
-    ArrayList<int[]> all_choice = new ArrayList<int[]>();
+    ArrayList<int[]> all_choice;
     
     int current_value;
-    
-    for(int row = 0; row<b.getLength(); row++){
 
-      for(int col=0;col<b.getLength();col++){
-        if(b.getPosition(row,col) == blank_char){
-
-        current_value = b.numFlipped(row, col, ai_char);
-        if(current_value !=0){
-          all_choice.add(create_decision(row, col, current_value));
-      }
-
-        }
-      }
-    }
+    all_choice = all_possible_choice(b,ai_char);
 
     int  highest_value = 0;
 
     Board newbie;
 
-    int[] highest_decision = all_choice.get(0);
+    int[] highest_decision = null;
+
+    int[] player_choice = new int[2];
 
     for(int[] choice:all_choice){
-       newbie = newBoard();
+      if(debug){
+      System.out.print("("+(choice[0]+1)+","+(choice[1]+1)+"): ");
+      }
 
-       newbie.place(choice[0],choice[1],ai_char); 
-       newbie.flip(choice[0], choice[1], ai_char);
+
+      newbie = create_possible_board(b,choice[0],choice[1],ai_char);
 
        for(int row = 0; row<newbie.getLength();row++){
          for(int col = 0; col<newbie.getLength();col++){
+          if(newbie.getPosition(row,col) == blank_char){
 
            current_value = newbie.numFlipped(row, col, player_char);
            if(current_value > highest_value){
             highest_value = current_value;
+
+            player_choice[0] = row;
+            player_choice[1] = col;
            }
+
+          }
 
          }
        }
+        if(debug){
+       System.out.println((choice[2]-highest_value)+"= "+ choice[2]+"-"+highest_value+" on ("+(player_choice[0]+1)+","+(player_choice[1]+1)+")");
+        }
 
        choice[2] -= highest_value;
 
-       if(highest_decision[2] < choice[2]){
+       highest_value = 0;
+
+       if(highest_decision==null||highest_decision[2] < choice[2] || (highest_decision[2] == choice[2] && percent_random(50))){
          highest_decision = choice;
        }
     }
@@ -144,50 +230,305 @@ public class Ai{
 
   }
 
-/*
-  public int[] best_decision(){
+  public int[] get_best_3(){
+    ArrayList<int[]> all_choice;
 
-    int[] best_d = new int[2];
-    best_d[0] = 0;
-    best_d[1] = 0;
-    int best_value = decision[0][0];
+    all_choice = all_possible_choice(b,ai_char);
+
+    Board newbie;
+
+    ArrayList<int[]> all_player_choice;
+
+    int[] highest_decision = null;
+
+    int[] player_best_choice = null;
+
+    int[] next_ai_best_choice = null;
+
+    for(int[] choice:all_choice){
+      if(debug){
+      System.out.print("("+(choice[0]+1)+","+(choice[1]+1)+"): ");
+
+      }
+
+
+      newbie = create_possible_board(b,choice[0],choice[1],ai_char);
+
+      all_player_choice = all_possible_choice(newbie,player_char);
+
+      //for printing
+
+      int[] highest_next_ai_value= new int[3];
+
+      for(int[] player_choice:all_player_choice){
+
+
+        next_ai_best_choice = highest_choice(    all_possible_choice(create_possible_board(newbie,player_choice[0],player_choice[1],player_char),    ai_char));
+        if(next_ai_best_choice!=null){
+
+        player_choice[2] -= next_ai_best_choice[2];
+        }
+        if(player_best_choice==null||player_choice[2]>player_best_choice[2]){
+          player_best_choice = player_choice;
+
+          if(next_ai_best_choice !=null){
+          highest_next_ai_value[0] = next_ai_best_choice[0];
+          highest_next_ai_value[1] = next_ai_best_choice[1];
+          highest_next_ai_value[2] = next_ai_best_choice[2];
+          }
+        }
+
+        next_ai_best_choice = null;
+        
+      }
+
+      if(debug){
+        if(choice !=null){
+          System.out.print(choice[2]);
+        }
+        else{
+          System.out.print(0);
+        }
+
+        if(player_best_choice != null){
+          System.out.print("-");
+          
+          if(highest_next_ai_value !=null){
+          System.out.print(player_best_choice[2]+highest_next_ai_value[2]);
+          }
+
+          else{
+            System.out.println(player_best_choice[2]);
+          }
+          System.out.print(" on("+(player_best_choice[0]+1)+","+(player_best_choice[1]+1)+")");
+        }
+        else{
+          System.out.print("-"+0);
+        }
+
+        if(highest_next_ai_value != null){
+          System.out.print("+"+highest_next_ai_value[2]+" on("+(highest_next_ai_value[0]+1) + ","+(highest_next_ai_value[1]+1));
+        }
+        else{
+          System.out.print("+"+0);
+        }
+
+        System.out.print(")");
+      }
 
     
 
-    for(int row = 0; row< b.getLength();row++){
-      for(int col =0; col<b.getLength(); col++){
+      if(player_best_choice != null){
 
-        if(available[row][col] && decision[row][col] > best_value){
-          best_d[0] =row;
-          best_d[1] = col;
-          best_value = decision[row][col];
+       choice[2] -= player_best_choice[2];
         }
 
-      }
+        if(debug){
+       System.out.println("="+choice[2]);
+        }
+       player_best_choice = null;
+
+
+       if(highest_decision==null||highest_decision[2] < choice[2] || (highest_decision[2] == choice[2] && percent_random(50))){
+         highest_decision = choice;
+       }
     }
 
-    return best_d;
-  }
-*/
-  public String toString(){
-    String total ="";
-    for(int row = 0; row<length;row++){
-      for (int col = 0;col<length;col++){
+    int[]  final_choice = {highest_decision[0],highest_decision[1]};
 
-        if(available[row][col]){
-          total+= decision[row][col];
+    return final_choice;
+
+    
+
+  }
+
+
+  public int[] get_best_4(){
+
+    int[] highest_decision = null;
+    ArrayList<int[]> all_choice = all_possible_choice(b,ai_char);
+
+
+    int[] player_best_choice = null;
+    Board newbie;
+    ArrayList<int[]> all_player_choice;
+
+
+    int[] next_ai_best_choice = null;
+    Board newnewbie;
+    ArrayList<int[]> all_next_ai_choice;
+
+
+    int[] next_player_best_choice = null;
+    ArrayList<int[]> all_next_player_choice;
+
+    //for printing
+
+    int[] printing_next_player_choice = new int[3];
+    int[] printing_next_ai_choice = new int[3];
+    int[] printing_player_choice = new int[3];
+
+    for(int[] choice:all_choice){
+      
+      if(debug){
+      System.out.print("("+(choice[0]+1)+","+(choice[1]+1)+"): ");
+      }
+
+
+      newbie = create_possible_board(b,choice[0],choice[1],ai_char);
+
+      all_player_choice = all_possible_choice(newbie,player_char);
+
+      for(int[] player_choice:all_player_choice){
+        newnewbie = create_possible_board(b,player_choice[0],player_choice[1],player_char);
+
+        all_next_ai_choice = all_possible_choice(newnewbie,ai_char);
+
+
+        for(int[] next_ai_choice:all_next_ai_choice){
+            
+          next_player_best_choice = highest_choice(all_possible_choice(create_possible_board(newbie,next_ai_choice[0],next_ai_choice[1],player_char), player_char));
+
+          
+          if(next_player_best_choice!=null){
+
+          next_ai_choice[2] -= next_player_best_choice[2];
+          }
+
+          if(next_ai_best_choice==null||next_ai_best_choice[2]<next_ai_choice[2]){
+          next_ai_best_choice = next_ai_choice;
+
+          if(next_player_best_choice !=null && debug){
+          printing_next_player_choice[0] = next_player_best_choice[0];
+
+          printing_next_player_choice[1] = next_player_best_choice[1];
+
+          printing_next_player_choice[2] = next_player_best_choice[2];
+            }
+          }
+          next_player_best_choice = null;
+        }
+
+
+        if(next_ai_best_choice!=null){
+
+        player_choice[2] -= next_ai_best_choice[2];
+        }
+        if(player_best_choice==null||player_choice[2]>player_best_choice[2]){
+          player_best_choice = player_choice;
+
+          if(next_ai_best_choice !=null && debug){
+          printing_next_ai_choice[0] = next_ai_best_choice[0];
+          printing_next_ai_choice[1] = next_ai_best_choice[1];
+          printing_next_ai_choice[2] = next_ai_best_choice[2];
+          }
+        }
+
+        next_ai_best_choice = null;
+        
+      }
+
+      if(debug){
+        if(choice !=null){
+          System.out.print(choice[2]);
         }
         else{
-          total += '/';
+          System.out.print(0);
         }
-        
-        total+=" ";
+
+        if(player_best_choice != null){
+          System.out.print("- ");
+          
+          if(printing_next_ai_choice !=null){
+          System.out.print(player_best_choice[2]+printing_next_ai_choice[2]);
+          }
+
+          else{
+            System.out.println(player_best_choice[2]);
+          }
+          System.out.print(" on("+(player_best_choice[0]+1)+","+(player_best_choice[1]+1)+")");
+        }
+        else{
+          System.out.print("-0");
+        }
+
+        if(printing_next_ai_choice != null){
+          System.out.print("+");
+
+          if(printing_next_player_choice != null){
+
+          
+
+          System.out.print((printing_next_ai_choice[2]+printing_next_player_choice[2])+" on("+(printing_next_ai_choice[0]+1) + ","+(printing_next_ai_choice[1]+1)+")");
+          }
+          else{
+            System.out.print(printing_next_ai_choice[2]+" on("+(printing_next_ai_choice[0]+1) + ","+(printing_next_ai_choice[1]+1)+")");
+          }
+        }
+        else{
+          System.out.print("+"+0);
+        }
+
+        if(printing_next_player_choice != null){
+          System.out.print("- "+printing_next_player_choice[2]+" on("+(printing_next_player_choice[0]+1)+","+(printing_next_player_choice[1]+1)+")");
+        }
+        else{
+          System.out.print("-0");
+        }
+
       }
-      total+="\n";
+
+    
+
+      if(player_best_choice != null){
+
+       choice[2] -= player_best_choice[2];
+      }
+
+        if(debug){
+       System.out.println("="+choice[2]);
+        }
+       player_best_choice = null;
+
+
+       if(highest_decision==null||highest_decision[2] < choice[2] || (highest_decision[2] == choice[2] && percent_random(50))){
+         highest_decision = choice;
+       }
     }
-    return total;
+
+    int[]  final_choice = {highest_decision[0],highest_decision[1]};
+
+    return final_choice;
+
+    
+
   }
 
+  public int[] get_decision(){
+    if(level == -1){
+      return get_worst();
+    }
+    if(level == 0){
+      return get_middle();
+    }
+    if(level == 1){
+      return get_best();
+    }
+    if(level == 2){
+      return get_best_2();
+    }
+    if(level == 3){
+      return get_best_3();
+    }
+    if(level == 4){
+      return get_best_4();
+    }
+    else{
+      int[] WTF  = {-1000,-1000,-1000};
+      System.out.println("Enter the correct level number");
+      return WTF;
+    }
+  }
 
 
 
